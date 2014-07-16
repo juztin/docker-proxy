@@ -12,16 +12,17 @@
 //  	"net/http"
 //
 //  	"code.minty.io/docker-proxy"
+//  	"code.minty.io/marbles/mux"
 //  )
 //
 //  func main() {
 //	 	m := mux.NewServeMux()
-//  	if err := SetupRoutes(m); err != nil {
+//  	if err := proxy.SetupRoutes(m); err != nil {
 //  		panic(err)
 //  	}
 //
 //  	// API
-//  	go http.ListenAndServe(":7824", APIHandler(m))
+//  	go http.ListenAndServe(":7824", proxy.APIHandler(m))
 //  	// Proxy
 //  	go http.ListenAndServe(":8080", m)
 //  	http.ListenAndServeTLS(":8443", "server.crt", "server.key", m)
@@ -125,6 +126,7 @@ func SetupRoutes(m *mux.ServeMux) error {
 		return err
 	}
 
+	m.ClearRoutes()
 	for path, route := range routes {
 		host := fmt.Sprintf("%s:%d", route.IP, route.Port)
 		log.Printf("proxying path '%s' to '%s'\n", path, host)
