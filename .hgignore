@@ -11,3 +11,4 @@ syntax: glob
 
 # specific
 .DS_Store
+./cmd/docker-proxy/docker-proxy
