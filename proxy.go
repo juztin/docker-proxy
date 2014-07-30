@@ -73,10 +73,18 @@ func toHost(host string) func(*http.Request) {
 	}
 }
 
+// Returns a new Docker client.
+func newDockerClient(host string) (*dockerclient.DockerClient, error) {
+	if len(host) > 3 && host[:3] == "tcp" {
+		host = "http" + host[3:]
+	}
+	return dockerclient.NewDockerClient(host)
+}
+
 // Generates a map of routes for all running containers that have an `ENDPOINT`
 // environment variable set.
 func RoutesFromHost(host string) (map[string]Route, error) {
-	docker, err := dockerclient.NewDockerClient(host)
+	docker, err := newDockerClient(host)
 	if err != nil {
 		return nil, err
 	}
