@@ -16,8 +16,8 @@
 #    -w /opt/go stampinup/dev-go \
 #    juztinwilzon/docker-proxy
 #
-#    docker run -it --rm -p 7824:7824 -p 80:8080 -p 443:8443 -e "DOCKER_HOST=unix:///var/run/docker.sock" -v /var/run/docker.sock juztinwilzon/docker-proxy
-#    docker run -it --rm -p 7824:7824 -p 80:8080 -p 443:8443 -e "TLS_KEY=/opt/proxy/scribbled.key" -e "TLS_CERT=/opt/proxy/scribbled.crt" -e "DOCKER_HOST=unix:///var/run/docker.sock" -v /var/run/docker.sock juztinwilzon/docker-proxy
+#    docker run -it --rm -p 7824:7824 -p 80:8080 -p 443:8443 -e "DOCKER_HOST=unix:///var/run/docker.sock" -v /var/run/docker.sock:/var/run/docker.sock juztinwilzon/docker-proxy
+#    docker run -it --rm -p 7824:7824 -p 80:8080 -p 443:8443 -e "TLS_KEY=/opt/proxy/scribbled.key" -e "TLS_CERT=/opt/proxy/scribbled.crt" -e "DOCKER_HOST=unix:///var/run/docker.sock" -v /var/run/docker.sock:/var/run/docker.sock juztinwilzon/docker-proxy
 #
 
 
