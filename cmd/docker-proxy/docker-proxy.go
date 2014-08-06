@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"code.minty.io/docker-proxy"
-	"code.minty.io/marbles/mux"
 )
 
 /*
@@ -28,21 +27,21 @@ docker run -it --rm \
 */
 
 func main() {
-	m := mux.NewServeMux()
-	if err := proxy.SetupRoutes(m); err != nil {
+	p := proxy.New()
+	if err := proxy.SetupRoutes(p); err != nil {
 		log.Fatalln(err)
 	}
 
 	// API
-	go http.ListenAndServe(":7824", proxy.APIHandler(m))
+	go http.ListenAndServe(":7824", proxy.APIHandler(p))
 
 	// Proxy
 	key, cert, hasCerts := cert()
 	if !hasCerts {
-		http.ListenAndServe(":8080", m)
+		http.ListenAndServe(":8080", p)
 	} else {
-		go http.ListenAndServe(":8080", m)
-		http.ListenAndServeTLS(":8443", cert, key, m)
+		go http.ListenAndServe(":8080", p)
+		http.ListenAndServeTLS(":8443", cert, key, p)
 	}
 }
 

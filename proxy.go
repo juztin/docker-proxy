@@ -36,20 +36,25 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/http/httputil"
 	"os"
 	"strconv"
 
-	"code.minty.io/marbles/mux"
+	"code.minty.io/roxy"
 	"github.com/samalba/dockerclient"
 )
 
+// Type Proxy implements an http.Handle
+// that acts as a proxy for Docekr containers.
+type Proxy struct {
+	*roxy.Proxy
+}
+
 // Type Route holds basic information about a container.
 type Route struct {
-	Path    string
-	IP      string
-	Port    int
-	created int
+	Host, Path string
+	IP         string
+	Port       int
+	created    int
 }
 
 // Gets an environment variables value.
@@ -101,8 +106,9 @@ func RoutesFromHost(host string) (map[string]Route, error) {
 			return nil, err
 		}
 
-		path, ok := envVariable("ENDPOINT", ci.Config.Env)
-		if !ok {
+		path, pathOk := envVariable("ENDPOINT", ci.Config.Env)
+		host, hostOk := envVariable("HOST", ci.Config.Env)
+		if pathOk == hostOk { // Hackety XOR.
 			continue
 		}
 
@@ -116,36 +122,42 @@ func RoutesFromHost(host string) (map[string]Route, error) {
 		}
 
 		n := ci.NetworkSettings
-		if r, ok := routes[path]; ok {
+		key := fmt.Sprintf("%s:%s", host, path)
+		if r, ok := routes[key]; ok {
 			if r.created > c.Created {
 				continue
 			}
 		}
-		routes[path] = Route{path, n.IpAddress, port, c.Created}
+		routes[key] = Route{host, path, n.IpAddress, port, c.Created}
 	}
 	return routes, err
 }
 
 // Adds all container routes to the given mux.
 // Running this after routes have already been setup will do a refresh/reload.
-func SetupRoutes(m *mux.ServeMux) error {
+func SetupRoutes(p *Proxy) error {
 	routes, err := RoutesFromHost(os.Getenv("DOCKER_HOST"))
 	if err != nil {
 		return err
 	}
 
-	m.ClearRoutes()
-	for path, route := range routes {
+	p.ClearHosts()
+	p.ClearPatterns()
+	for _, route := range routes {
 		host := fmt.Sprintf("%s:%d", route.IP, route.Port)
-		log.Printf("proxying path '%s' to '%s'\n", path, host)
-		m.UnHandle(path)
-		m.Handle(path, &httputil.ReverseProxy{Director: toHost(host)})
+		if route.Path != "" {
+			log.Printf("proxying path '%s' to '%s'\n", route.Path, host)
+			p.ForPattern(route.Path, roxy.ToHost(host))
+		} else {
+			log.Printf("proxying host '%s' to '%s'\n", route.Host, host)
+			p.ForHost(route.Host, roxy.ToHost(host))
+		}
 	}
 	return nil
 }
 
-// Simple API handler (currently only supports POST with a query-string of `?action=reload`)
-func APIHandler(m *mux.ServeMux) http.Handler {
+// Simple API handler (currently only supports POST with a query-string of `?action=reload`).
+func APIHandler(p *Proxy) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -158,7 +170,12 @@ func APIHandler(m *mux.ServeMux) http.Handler {
 			w.Write([]byte("Invalid, or missing, 'action'"))
 		case "reload":
 			log.Println("reloading routes")
-			SetupRoutes(m)
+			SetupRoutes(p)
 		}
 	})
+}
+
+// New returns a new Proxy.
+func New() *Proxy {
+	return &Proxy{roxy.New()}
 }
