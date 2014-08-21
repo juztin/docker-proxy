@@ -33,26 +33,31 @@ func main() {
 	}
 
 	// API
+	log.Println("API listening on 7824")
 	go http.ListenAndServe(":7824", proxy.APIHandler(p))
 
 	// Proxy
 	key, cert, hasCerts := cert()
 	if !hasCerts {
+		log.Printf("Certificate missing, key: '%s', cert: '%s'", key, cert)
+		log.Println("Listening on 8080")
 		http.ListenAndServe(":8080", p)
 	} else {
+		log.Println("Listening on 8080, 8443")
 		go http.ListenAndServe(":8080", p)
 		http.ListenAndServeTLS(":8443", cert, key, p)
 	}
 }
 
 func cert() (key string, cert string, ok bool) {
+	ok = true
 	key = os.Getenv("TLS_KEY")
 	cert = os.Getenv("TLS_CERT")
 	if key == "" {
 		key = "/opt/proxy/proxy.key"
 	}
 	if cert == "" {
-		key = "/opt/proxy/proxy.crt"
+		cert = "/opt/proxy/proxy.crt"
 	}
 	if _, err := os.Stat(key); err != nil {
 		ok = false
